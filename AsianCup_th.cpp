@@ -518,7 +518,7 @@ void CreateAccount::SignUpPage()
             }
     }
 }
-dddd
+
 void CreateAccount::CreateAccountPage()
 {
     system("clear");
