@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <vector>
 using namespace std;
-
+int log_count = 0;
 // 스포츠 정보 클래스
 class SportsInformation
 {
@@ -95,9 +95,10 @@ public:
     void MatchPlace();
     void MatchDay();
     int Money(string l);
-    void ReservationCheck();
+    void LastReservationCheck();
     void FileSave();
     void ReservDu();
+    void ReservCHeck(int renum);
 
 private:
     int mnum_;
@@ -107,7 +108,51 @@ private:
     vector<string> day;
     vector<string> place;
     vector<string> matchday = {"2024.01.15 대한민국 VS 바레인", "2024.01.16 말레이시아 VS 요르단","2024.01.20 요르단 VS 대한민국", "2024.01.20 바레인 VS 말레이시아","2024.01.25 대한민국 VS 말레이시아","2024.01.25 요르단 VS 바레인"};
+    vector<string> reservnum;
 };
+void MatchReservation::ReservCHeck(int renum)
+{
+    cout << "회원번호로 예매 내역을 확인하겠습니다." << endl;
+        ifstream file("reserv.csv");
+        if(file.is_open())
+        {   string line;
+            while(!file.eof()){
+                getline(file, line);
+                string a;
+                int i = 0;
+
+                string s = line; // 한줄씩 string 형식으로 읽어오기 위해서
+                stringstream ss(s);
+                while(getline(ss, a,','))
+                {   
+                    if(i==0)
+                        day.push_back(a);
+                    if(i==1)
+                        place.push_back(a);
+                    if(i==2)
+                    {
+                        reservnum.push_back(a);
+                        i = 0;
+                    }
+                    i++;
+                }
+            }
+            file.close();
+            for(int i =0; i<reservnum.size();i++)
+                {
+                    if(stoi(reservnum[i]) == renum)
+                    {
+                        cout << "현재 예매 내역 " << endl;
+                        cout << "경기 일정 : " << matchday[stoi(day[i])-1] << endl;
+                        cout << "경기 좌석 : " << place[i] << endl; 
+                    }
+                }
+        }
+    else
+        cout << "현재 예매내역은 없습니다. " << endl;
+    
+}
+
 void MatchReservation::MatchDay()
 {
     // 파일 입출력
@@ -169,8 +214,9 @@ void MatchReservation::MatchPlace()
 
     cout << endl;
     cout << "결제해야 하는 금액은 " << money * num << " 달러 입니다." << endl;
+    money_.push_back(money*num);
     sleep(5);
-    ReservationCheck();
+    LastReservationCheck();
 }
 int MatchReservation::Money(string l)
 {
@@ -189,6 +235,7 @@ int MatchReservation::Money(string l)
 }
 void MatchReservation::ReservationPage(int mnum)
 {   
+    //reservnum.push_back(mnum);
     mnum_ = mnum;
     system("clear");
     cout << "------------------------" << endl;
@@ -196,14 +243,14 @@ void MatchReservation::ReservationPage(int mnum)
     cout << "------------------------" << endl;
     MatchDay();
 }
-void MatchReservation::ReservationCheck()
+void MatchReservation::LastReservationCheck()
 {
     system("clear");
     string line;
     cout << "선택하신 좌석을 확인하겠습니다." << endl;
 
     cout << "경기 일정은 " << matchday[stoi(day.back())-1] << ", 좌석은 " << place.back() << "입니다. " << endl;
-
+    //cout << day.back() << ", " << place.back() << ", " << reservnum.back();
     sleep(5);
 
     FileSave();
@@ -220,7 +267,7 @@ void MatchReservation::FileSave()
     if (file.is_open())
     {
         for (int i = 0; i < reserv.size(); i++)
-            file << reserv[i] << ",";
+            file << reserv[i] << ","; 
         
         file << mnum_;
         file << endl;
@@ -274,9 +321,7 @@ void CreateAccount::PrintLogo()
         file.close();
     }
     else
-    {
         cout << "Unable to open file";
-    }
 }
 void CreateAccount::Exit() { exit(0); }
 void CreateAccount::FirstPage()
@@ -286,8 +331,7 @@ void CreateAccount::FirstPage()
     PrintLogo();
     cout << "------------------------" << endl;
     cout << "1. 아시안컵 정보 알아보기" << endl;
-    cout << "2. 경기 예매하기" << endl;
-    cout << "3. 예매 내역 확인하기" << endl;
+    cout << "2. 경기 예매하기 / 예매 내역 확인하기" << endl;
     cout << "3. 종료하기" << endl;
     cout << "------------------------" << endl;
     string c;
@@ -324,22 +368,22 @@ void CreateAccount::FirstPage()
     }
     else if (c == "2")
         SignUpPage();
-    //else if(c == "3")
-    else if (c == "4")
+    else if (c == "3")
         Exit();
 }
 void CreateAccount::SignUpPage()
-{
+{   
+    MatchReservation d;
     system("clear");
     string line;
     string c;
-    int log_count = 0;
     PrintLogo();
     cout << "------------------------" << endl;
     cout << "1. 로그인하기" << endl;
     cout << "2. ID 찾기" << endl;
     cout << "3. PW 찾기" << endl;
     cout << "4. 회원가입하기" << endl;
+    cout << "5. 예매 내역 확인하기" << endl;
     cout << "------------------------" << endl;
     getline(cin, c);
     if (c == "1") // 1. 로그인하기 눌렀을 때
@@ -347,29 +391,39 @@ void CreateAccount::SignUpPage()
         if (log_count > 0)
         {
             cout << "이미 로그인 되셨어요🙏 \n";
-            FirstPage();
         }
-        MatchReservation d;
         // system("clear");
         //  a.clear();
-        cout << "ID를 입력하십시오 : ";
-        getline(cin, line);
-        while (IdDu(line) == 1)
-        {
-            cout << "그런 ID는 없으세요🙏 : ";
+        else{
+            cout << "ID를 입력하십시오 : ";
             getline(cin, line);
-        }
-        string p_id = line;
-        cout << "비밀번호를 입력하십시오 : ";
-        getline(cin, line);
-        while (PwDu(p_id,line) == 0)
-        {
-            cout << "입력하신 비밀번호가 ID와 일치하지 않습니다. 다시 부탁드려요🙏 : ";
+            while (IdDu(line) == 1)
+            {
+                cout << "그런 ID는 없으세요🙏 : ";
+                getline(cin, line);
+            }
+            string p_id = line;
+            cout << "비밀번호를 입력하십시오 : ";
             getline(cin, line);
+            while (PwDu(p_id,line) == 0)
+            {
+                cout << "입력하신 비밀번호가 ID와 일치하지 않습니다. 다시 부탁드려요🙏 : ";
+                getline(cin, line);
+            }
+            cout << "로그인 되셨습니다!" << endl;
+            log_count += 1;
         }
-        cout << "로그인 되셨습니다!" << endl;
-        log_count += 1;
-        d.ReservationPage(MemberNumber.back());
+        cout << "경기를 예매하시려면 1, 예매 정보를 확인하시려면 2를, 나가려면 3을 눌러주세요! " << endl;
+        string n;
+        getline(cin,n);
+        
+        if(n == "1")
+            d.ReservationPage(MemberNumber.back());
+        else if(n == "2")
+            d.ReservCHeck(MemberNumber.back());
+        else if(n == "3")
+            FirstPage();
+
     }
     else if (c == "2") // 2. ID찾기 눌렀을 때
     {
@@ -451,6 +505,17 @@ void CreateAccount::SignUpPage()
         cout << MemBerNumber() << "입니다.\n";
         FileSave();
         FirstPage();
+    }
+    else if(c == "5")
+    {
+        ifstream file("reserv.csv");
+        if(file.is_open())
+            d.ReservCHeck(MemberNumber.back());
+        else
+            {
+                cout << "로그인후 경기 예매를 부탁드립니다. " << endl;
+                FirstPage();
+            }
     }
 }
 void CreateAccount::CreateAccountPage()
