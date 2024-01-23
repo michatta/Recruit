@@ -1,8 +1,23 @@
 #include "Recruit.h"
 
-int count = 0;
-//로그인, 회원가입을 수행하는 함수
-
+int log_count = 0;
+//검색 화면을 보여주며 검색 로고 프린트
+void Listup::SearchLogo()
+{
+    //system("clear");
+    string ch;
+    string line;
+    ifstream file("Search");
+    if (file.is_open())
+    {
+        while (getline(file, line))
+            cout << line << endl;
+        file.close();
+    }
+    else
+        cout << "Unable to open file";
+}
+//랜덤으로 3개의 기업 공고를 보여주는 함수
 void Listup::RandomListup()
 {
     system("clear");
@@ -23,6 +38,7 @@ void Listup::RandomListup()
     BasicSearch();
 
 }
+//sql callback 함수 , 한 행씩 읽어와서 프린트할 때 쓰는 함수
 int Listup::callback(void *NotUsed,int argc,char **argv, char **azColName)
 {   
     NotUsed = 0;
@@ -36,6 +52,7 @@ int Listup::callback(void *NotUsed,int argc,char **argv, char **azColName)
     cout << endl << endl;
     return 0;
 }
+//검색을 시작하는 함수 - 기본 검색과 상세 검색을 선택하게 함, 기본 검색 로직이 포함되어 있음
 void Listup::BasicSearch()
 {   //asd 1234
     Membership a;
@@ -44,6 +61,7 @@ void Listup::BasicSearch()
     sqlite3_stmt * res;
     
     system("clear");
+    SearchLogo();
     int rc = sqlite3_open("job.db", &db);
     string count;
     string sch;
@@ -51,16 +69,25 @@ void Listup::BasicSearch()
     cout <<"-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------" << endl;
     cout << "단어를 검색하면 관련있는 취업 정보를 안내해드립니다. 1. 기본 검색 2. 상세 검색 0. 뒤로 가기 : ";
     getline(cin,sch);
-    sleep(2);
 
     if(sch == "0")
         a.page1();
+    else if(sch == "1")
+    {
+        cout << "\n기존 검색 기록 : ";
+        for(int i =0;i < searchrecord.size(); i++)
+            cout << searchrecord[i] << " | ";
+        cout << "\n원하는 단어를 입력해주세요 : ";
+        getline(cin, sch);
+        searchrecord.push_back(sch);
+    }
+    
     else if(sch == "2")
         DetailSearch();
         
     //system("clear");
     string sql = "SELECT 회사코드, 회사명, 공고명, 담당업무, 필요스킬, 우대사항, 산업 FROM Recruit WHERE 필요스킬 LIKE '%"+sch+"%' OR 담당업무 LIKE '%"+sch+"%' OR 우대사항 LIKE '%"+sch+"%' OR 학력 LIKE '%"+sch+"%' OR 경력 LIKE '%"+sch+"%' OR 고용형태 LIKE '%"+sch+"%' OR  공고명 LIKE '%"+sch+"%';";
-    string sql2 = "SELECT COUNT(공고명) FROM Recruit WHERE 필요스킬 LIKE '%"+sch+"%' OR 담당업무 LIKE '%"+sch+"%' OR 우대사항 LIKE '%"+sch+"%' OR 학력 LIKE '%"+sch+"%' OR 경력 LIKE '%"+sch+"%' OR 고용형태 LIKE '%"+sch+"%';";
+    string sql2 = "SELECT COUNT(공고명) FROM Recruit WHERE 필요스킬 LIKE '%"+sch+"%' OR 담당업무 LIKE '%"+sch+"%' OR 우대사항 LIKE '%"+sch+"%' OR 학력 LIKE '%"+sch+"%' OR 경력 LIKE '%"+sch+"%' OR 고용형태 LIKE '%"+sch+"%' OR  공고명 LIKE '%"+sch+"%';";
     cout << endl << "< " << sch + " > 단어 관련 기업 공고 \n\n";
     
     rc = sqlite3_exec(db, sql.c_str(), callback, 0, &err_msg);
@@ -76,23 +103,29 @@ void Listup::BasicSearch()
 
     if (count == "0")
     {
-        cout << "검색어와 관련 있는 공고가 존재하지 않습니다. 다시 입력해주세요. 0. 뒤로가기 \n";
+        cout << "검색어와 관련 있는 공고가 존재하지 않습니다. 다시 입력해주세요.\n";
+        sleep(2);
         BasicSearch();
     }
 
-    cout << "더 자세한 정보를 알고 싶으시면 회사 코드를 입력해주세요 : ";
+    cout << "\n더 자세한 정보를 알고 싶으시면 회사 코드를 입력해주세요 : ";
     string code;
-    getline(cin,ch);
-    ShowDetail(ch);
+    getline(cin,code);
+    ShowDetail(code,count);
 
 }
+//상세 검색 함수
 void Listup::DetailSearch()
 {   
+    searchnum.clear();
+    string count;
     sqlite3 *db;
     char *err_msg = 0;
+    sqlite3_stmt * res;
     string h, c, p;
     int rc = sqlite3_open("job.db", &db);
-    cout << "상세 검색을 시작하겄습니다." << endl;
+    int rc2 = sqlite3_open("job.db", &db);
+    cout << "\n상세 검색을 시작하겄습니다." << endl;
     cout << "1. 학력 [학력무관 | 대졸 | 초대졸 | 고졸] : ";
     getline(cin, h);
 
@@ -102,28 +135,74 @@ void Listup::DetailSearch()
     cout << "\n3. 근무지 [서울 | 경기 | 충남 | 대구 | 부산 | 인천 | 광주] : ";
     getline(cin, p);
 
+    cout << endl;
     string sql = "SELECT 회사코드, 회사명, 공고명, 담당업무, 필요스킬, 우대사항, 산업 FROM Recruit WHERE 학력 LIKE '%"+h+"%' AND 경력 LIKE '%"+c+"%' AND 근무지역 LIKE '%"+p+"%';";
+    string sql2 = "SELECT COUNT(회사코드) FROM Recruit WHERE 학력 LIKE '%"+h+"%' AND 경력 LIKE '%"+c+"%' AND 근무지역 LIKE '%"+p+"%';";
+
     
     rc = sqlite3_exec(db, sql.c_str(), callback, 0, &err_msg);
 
+    rc = sqlite3_prepare_v2(db,sql2.c_str(),-1,&res,nullptr);
+
+    while((rc=sqlite3_step(res))==SQLITE_ROW) // count 건수만 가져옴
+    {
+        count = reinterpret_cast<const char*>(sqlite3_column_text(res,0));
+        cout << "현재 관련 공고의 검색 수는 " << count << "건입니다. \n"; 
+    }
+
+    string sql3 = "SELECT 회사코드 FROM Recruit WHERE 학력 LIKE '%"+h+"%' AND 경력 LIKE '%"+c+"%' AND 근무지역 LIKE '%"+p+"%';";
+
+    rc2 = sqlite3_prepare_v2(db,sql3.c_str(),-1,&res,nullptr);
+
+    while((rc2=sqlite3_step(res))==SQLITE_ROW) // 회사코드별로 다 가져옴
+    {
+        searchnum.push_back(reinterpret_cast<const char*>(sqlite3_column_text(res,0)));
+    }
+    sqlite3_finalize(res);
+
     sqlite3_close(db);
 
-    cout << "더 자세한 정보를 알고 싶으시면 회사 코드를 입력해주세요. 0. 뒤로가기 : ";
-    string a;
-    getline(cin, a);
+    if (count == "0")
+    {
+        cout << "검색어와 관련 있는 공고가 존재하지 않습니다. 다시 입력해주세요. 0. 뒤로가기 \n";
+        string a;
+        getline(cin, a);
 
-    if(a=="0")
-        BasicSearch();
-    else
-        ShowDetail(a);
+        if(a=="0")
+            BasicSearch();
+        DetailSearch();
+    }
+
+    cout << "\n더 자세한 정보를 알고 싶으시면 회사 코드를 입력해주세요 : ";
+    string code;
+    getline(cin,code);
+    ShowDetail(code,count);
     
 }
-void Listup::ShowDetail(string num)
+
+//회사 코드를 바탕으로 공고 상세보기나 기업 상세보기를 선택할 수 있는 함수
+void Listup::ShowDetail(string num,string count)
 {   
     cout << "현재 입력된 회사 코드는 " << num << " 입니다." << endl;
     int ch;
+    int i = 0;
+    
+    while(1)
+    {
+        if(searchnum[i] != num && (i == stoi(count)))
+        {
+            cout << "상세검색에서 출력된 공고와 입력한 회사코드가 일치하지 않습니다.\n";
+            sleep(2);
+            BasicSearch();
+        }
+        if(searchnum[i] == num)
+            break;
+        i++;
+    }
+
     cout << "\n1. 공고 상세 보기 2. 기업 정보 상세 보기 0. 뒤로 가기 : ";
     cin >> ch;
+    cin.ignore();
 
     if(ch == 1)
         ShowOpening(num);
@@ -133,6 +212,7 @@ void Listup::ShowDetail(string num)
         BasicSearch();
     sleep(3);
 }
+//공고 상세 정보 보기 함수
 void Listup::ShowOpening(string Snum) // 공고 상세 정보 보여주기
 {
     system("clear");
@@ -176,6 +256,7 @@ void Listup::ShowOpening(string Snum) // 공고 상세 정보 보여주기
         BasicSearch();
 
 }
+//기업 상세 정보 보기 함수
 void Listup::ShowCorporate(string Snum) // 기업 상세 정보 보여주기
 {
     system("clear");
@@ -221,13 +302,13 @@ void Listup::ShowCorporate(string Snum) // 기업 상세 정보 보여주기
         
 }
 
-
+//시작 화면 함수
 void Membership::page1() //시작 화면
 {
     system("clear");
     string ch;
     string line;
-    ifstream file("RecruitLogo");
+    ifstream file("Recruit-in");
     if (file.is_open())
     {
         while (getline(file, line))
@@ -237,10 +318,10 @@ void Membership::page1() //시작 화면
     else
         cout << "Unable to open file";
 
-    cout << "|| 1. 로그인\n  |";
-    cout << "| 2. 회원가입\n|";
-    cout << "| 3. 종료\n    \n";
-    cout << "|| 번호 입력 : ";
+    cout << "|| 1. 로그인     || 2. 회원가입     || 3. 종료      || 번호 입력 :  ";
+    // cout << "| 2. 회원가입\n|";
+    // cout << "| 3. 종료\n    \n";
+    // cout << "|| 번호 입력 : ";
     getline(cin,ch);
 
     if(ch == "1")
@@ -249,13 +330,14 @@ void Membership::page1() //시작 화면
         JoinMember();
     else if(ch == "3")
         Exit();
+
 }
-void Membership::JoinMember() //회원가입하는 함수 + 중복검사를 수행한다. 중복검사가 끝나면 database에 insert한다.
+//회원가입하는 함수 + 중복검사를 수행. 중복검사가 끝나면 database에 insert함
+void Membership::JoinMember() 
 {
     srand((unsigned int)time(NULL));
     sqlite3 *db;
     char *err_msg = 0;
-    //sqlite3_stmt* res;
     
     int rc = sqlite3_open("job.db", &db);
     while(1)
@@ -272,7 +354,6 @@ void Membership::JoinMember() //회원가입하는 함수 + 중복검사를 수�
         {
             cout << "중복된 ID입니다." << endl;
             sqlite3_finalize(res);
-            //sqlite3_close(db);
             continue;
         }
         break;
@@ -304,7 +385,6 @@ void Membership::JoinMember() //회원가입하는 함수 + 중복검사를 수�
         {
             cout << "중복된 이메일입니다." << endl;
             sqlite3_finalize(res);
-            //sqlite3_close(db);
             continue;
         }
         break;
@@ -340,8 +420,17 @@ void Membership::JoinMember() //회원가입하는 함수 + 중복검사를 수�
     page1();
 
 }
-void Membership::LoginMember() //로그인하는 함수
+//로그인하는 함수
+void Membership::LoginMember() 
 {
+    Listup c;
+    if(log_count==1)
+    {
+        cout << "이미 로그인 되셨습니다." << endl;
+        sleep(2);
+        c.RandomListup();
+    }
+
     Listup b;
     cout << "\nID를 입력하세요 : ";
     sqlite3 *db;
@@ -388,11 +477,13 @@ void Membership::LoginMember() //로그인하는 함수
     }
     cout << endl;
     cout << "로그인 되셨습니다! " << endl;
+    log_count++;
     sqlite3_close(db);
     sleep(3);
 
     b.RandomListup();
 }
+//프로그램 종료 함수
 void Membership::Exit()
 {
     exit (0);
